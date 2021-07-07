@@ -27,6 +27,7 @@
 
 #include <memory>
 #include <string>
+#include <random>
 
 namespace gazebo {
 #define DEPTH_CAMERA_NAME "depth"
@@ -40,6 +41,8 @@ struct CameraParams {
   std::string topic_name;
   std::string camera_info_topic_name;
   std::string optical_frame;
+  std::string noise_type;
+  double noise_std;
 };
 
 /// \brief A plugin that simulates Real Sense camera streams.
@@ -134,6 +137,12 @@ protected:
 
   float rangeMinDepth_;
   float rangeMaxDepth_;
+  
+  // random device class instance, source of 'true' randomness for initializing random seed
+  std::random_device rd; 
+  // Mersenne twister PRNG, initialized with seed from previous random device instance
+  std::mt19937 gen; 
+  std::normal_distribution<float> normal_dist;
 };
 }
 #endif

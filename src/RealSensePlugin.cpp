@@ -37,6 +37,7 @@ RealSensePlugin::RealSensePlugin()
   this->colorCam = nullptr;
   this->prefix = "";
   this->pointCloudCutOffMax_ = 5.0;
+  this->gen = std::mt19937(rd());
 }
 
 /////////////////////////////////////////////////
@@ -57,7 +58,8 @@ void RealSensePlugin::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf)
   cameraParamsMap_.insert(std::make_pair(DEPTH_CAMERA_NAME, CameraParams()));
   cameraParamsMap_.insert(std::make_pair(IRED1_CAMERA_NAME, CameraParams()));
   cameraParamsMap_.insert(std::make_pair(IRED2_CAMERA_NAME, CameraParams()));
-
+  
+  
   do {
     std::string name = _sdf->GetName();
     if (name == "depthUpdateRate") {
@@ -116,6 +118,12 @@ void RealSensePlugin::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf)
       _sdf->GetValue()->Get(pointCloudCutOffMax_);
     } else if (name == "prefix") {
       this->prefix = _sdf->GetValue()->GetAsString();
+    } else if (name == "depthNoiseType") {
+      cameraParamsMap_[DEPTH_CAMERA_NAME].noise_type =
+      _sdf->GetValue()->GetAsString();
+    } else if (name == "depthNoiseStd") {
+      cameraParamsMap_[DEPTH_CAMERA_NAME].noise_std =
+      std::stod(_sdf->GetValue()->GetAsString());
     } else if (name == "robotNamespace") {
       break;
     } else {
@@ -124,7 +132,13 @@ void RealSensePlugin::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf)
 
     _sdf = _sdf->GetNextElement();
   } while (_sdf);
-
+  
+  if (cameraParamsMap_[DEPTH_CAMERA_NAME].noise_type != "gaussian"){
+        std::cerr << "The nois type: " << cameraParamsMap_[DEPTH_CAMERA_NAME].noise_type << " is not accepted" <<
+        std::endl;
+        return;
+  }
+  this->normal_dist = std::normal_distribution<float>(0.0, cameraParamsMap_[DEPTH_CAMERA_NAME].noise_std * DEPTH_SCALE_M);
   // Store a pointer to the this model
   this->rsModel = _model;
 
@@ -138,7 +152,6 @@ void RealSensePlugin::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf)
   this->depthCam = std::dynamic_pointer_cast<sensors::DepthCameraSensor>(
     smanager->GetSensor(prefix + DEPTH_CAMERA_NAME))
     ->DepthCamera();
-
   this->ired1Cam = std::dynamic_pointer_cast<sensors::CameraSensor>(
     smanager->GetSensor(prefix + IRED1_CAMERA_NAME))
     ->Camera();
@@ -259,8 +272,16 @@ void RealSensePlugin::OnNewDepthFrame()
   msgs::ImageStamped msg;
 
   // Convert Float depth data to RealSense depth data
-  const float * depthDataFloat = this->depthCam->DepthData();
+  // recast the const float pointer as a float pointer
+  float * depthDataFloat =  const_cast<float*>(this->depthCam->DepthData());
+
+  //std::cout << std::setprecision(3);
   for (unsigned int i = 0; i < imageSize; ++i) {
+    // inject noise to clip it if it goes out of boudaries
+    //std::cout << "depth data " << depthDataFloat[i];
+    //std::cout << depthDataFloat[i] << " ";
+    depthDataFloat[i] += this->normal_dist(this->gen);
+    //std::cout << " with noise " << data << std::endl;
     // Check clipping and overflow
     if (depthDataFloat[i] < rangeMinDepth_ ||
       depthDataFloat[i] > rangeMaxDepth_ ||
@@ -272,6 +293,7 @@ void RealSensePlugin::OnNewDepthFrame()
       this->depthMap[i] = (uint16_t)(depthDataFloat[i] / DEPTH_SCALE_M);
     }
   }
+  //std::cout << std::endl;
 
   // Pack realsense scaled depth map
   msgs::Set(msg.mutable_time(), this->world->SimTime());

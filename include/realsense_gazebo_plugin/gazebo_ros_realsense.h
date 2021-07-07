@@ -45,7 +45,7 @@ public:
   /// \brief Helper function to fill the pointcloud information
   bool FillPointCloudHelper(
     sensor_msgs::msg::PointCloud2 & point_cloud_msg, uint32_t rows_arg,
-    uint32_t cols_arg, uint32_t step_arg, void * data_arg);
+    uint32_t cols_arg, uint32_t step_arg, const void * data_arg);
 
   /// \brief Callback that publishes a received Camera Frame as an
   /// ImageStamped message.
