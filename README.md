@@ -14,7 +14,7 @@ This package also includes the work developed by Intel Corporation with the ROS 
 ## Example usage with a custom robot
 
 Note that this was tested for the ROS2 branch with ROS Foxy distro. A turtlebot3 like custom robot model was used. 
-In custom robot's `model.sdf`, we should attach the link, sensors, joint  and plugin block as following; 
+In custom robot's `model.sdf`, we should attach the link, sensors, joint  and plugin block as following;
 (the standard deviation of the depth noise is in mm, depthNoiseStd)
 
 ```xml
