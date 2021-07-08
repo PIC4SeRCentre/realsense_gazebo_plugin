@@ -1,6 +1,6 @@
 # Intel RealSense Gazebo ROS plugin
 
-This package is a Gazebo ROS plugin for the Intel D435 realsense camera. It has been added a noise model for the depth data, only in the ROS2 branch. There is a simple constant gaussian noise for testing, calle "gaussian" and controlled by depthNoiseStd and there is an axial gaussian noise dependent on the distance, taken from [this paper](https://ieeexplore.ieee.org/abstract/document/8768489) when the observed surface is perpendicular to the camera.
+This package is a Gazebo ROS plugin for the Intel D435 realsense camera. It has been added a noise model for the depth data, only in the ROS2 branch. There is a simple constant gaussian noise for testing, called "gaussian" and controlled by depthNoiseStd, and there is an axial gaussian noise dependent on the distance, taken from [this paper](https://ieeexplore.ieee.org/abstract/document/8768489) when the observed surface is perpendicular to the camera.
 
 ## Note
 This branch is aimed for ROS2, if you are ROS1 user you can see the other branches(e.g melodic)
