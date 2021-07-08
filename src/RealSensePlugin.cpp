@@ -133,12 +133,20 @@ void RealSensePlugin::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf)
     _sdf = _sdf->GetNextElement();
   } while (_sdf);
   
-  if (cameraParamsMap_[DEPTH_CAMERA_NAME].noise_type != "gaussian"){
+  if (cameraParamsMap_[DEPTH_CAMERA_NAME].noise_type == "gaussian"){
+        this->normal_dist = std::normal_distribution<float>(0.0, cameraParamsMap_[DEPTH_CAMERA_NAME].noise_std);
+  } else if (cameraParamsMap_[DEPTH_CAMERA_NAME].noise_type == "model"){
+        size_t size = std::round(pointCloudCutOffMax_ - pointCloudCutOff_) * 1000;
+        for (size_t i{0}; i < size; ++i){
+                float z = pointCloudCutOff_ + (float)i / 1000;
+                float sigma_z = 0.001063 + 0.0007278*z + 0.003949*z*z;
+                this->normal_dist_vect.emplace_back(std::normal_distribution<float>(0.0, sigma_z));
+        }
+  } else {
         std::cerr << "The nois type: " << cameraParamsMap_[DEPTH_CAMERA_NAME].noise_type << " is not accepted" <<
         std::endl;
         return;
   }
-  this->normal_dist = std::normal_distribution<float>(0.0, cameraParamsMap_[DEPTH_CAMERA_NAME].noise_std * DEPTH_SCALE_M);
   // Store a pointer to the this model
   this->rsModel = _model;
 
@@ -280,7 +288,7 @@ void RealSensePlugin::OnNewDepthFrame()
     // inject noise to clip it if it goes out of boudaries
     //std::cout << "depth data " << depthDataFloat[i];
     //std::cout << depthDataFloat[i] << " ";
-    depthDataFloat[i] += this->normal_dist(this->gen);
+
     //std::cout << " with noise " << data << std::endl;
     // Check clipping and overflow
     if (depthDataFloat[i] < rangeMinDepth_ ||
@@ -290,6 +298,16 @@ void RealSensePlugin::OnNewDepthFrame()
     {
       this->depthMap[i] = 0;
     } else {
+      if (cameraParamsMap_[DEPTH_CAMERA_NAME].noise_type == "model"){
+        depthDataFloat[i] += this->normal_dist_vect[std::round(depthDataFloat[i] - pointCloudCutOff_) * 1000](this->gen);
+        if (depthDataFloat[i] < rangeMinDepth_ ||
+      depthDataFloat[i] > rangeMaxDepth_)
+      {
+        depthDataFloat[i] = 0;
+      }
+      } else {
+        depthDataFloat[i] += this->normal_dist(this->gen);
+      }
       this->depthMap[i] = (uint16_t)(depthDataFloat[i] / DEPTH_SCALE_M);
     }
   }

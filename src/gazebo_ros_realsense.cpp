@@ -80,6 +80,7 @@ void GazeboRosRealsense::OnNewFrame(
   const rendering::CameraPtr cam,
   const transport::PublisherPtr pub)
 {
+  //auto start = std::chrono::high_resolution_clock::now();
   common::Time current_time = this->world->SimTime();
 
   // identify camera
@@ -116,7 +117,9 @@ void GazeboRosRealsense::OnNewFrame(
     {IRED1_CAMERA_NAME, this->ired1Cam},
     {IRED2_CAMERA_NAME, this->ired2Cam},
   };
-
+  //auto stop = std::chrono::high_resolution_clock::now();
+  //auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+  //std::cout << "RGB duration " << duration.count() << " \u03BCs" << std::endl;
   // publish to ROS
   auto camera_info_msg =
     cameraInfo(this->image_msg_, cameras.at(camera_id)->HFOV().Radian());
@@ -131,6 +134,8 @@ bool GazeboRosRealsense::FillPointCloudHelper(
   uint32_t rows_arg, uint32_t cols_arg,
   uint32_t step_arg, const void * data_arg)
 {
+  double pointCloudCutOff_ = (double)this->rangeMinDepth_;
+  double pointCloudCutOffMax_ = (double)this->rangeMaxDepth_;
   sensor_msgs::PointCloud2Modifier pcd_modifier(point_cloud_msg);
   pcd_modifier.setPointCloud2FieldsByString(2, "xyz", "rgb");
   // convert to flat array shape, we need to reconvert later
@@ -214,6 +219,7 @@ bool GazeboRosRealsense::FillPointCloudHelper(
 void GazeboRosRealsense::OnNewDepthFrame()
 {
   // get current time
+  //auto start = std::chrono::high_resolution_clock::now();
   common::Time current_time = this->world->SimTime();
 
   RealSensePlugin::OnNewDepthFrame();
@@ -248,8 +254,13 @@ void GazeboRosRealsense::OnNewDepthFrame()
       this->pointcloud_msg_, this->depthCam->ImageHeight(),
       this->depthCam->ImageWidth(), 2 * this->depthCam->ImageWidth(),
       (const void *)this->depthCam->DepthData());
+    //auto stop = std::chrono::high_resolution_clock::now();
+    //auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+    //std::cout << "Depth and pc duration " << duration.count() << "ms" << std::endl;
     this->pointcloud_pub_->publish(this->pointcloud_msg_);
   }
+
+  
 }
 }
 

@@ -143,6 +143,7 @@ protected:
   // Mersenne twister PRNG, initialized with seed from previous random device instance
   std::mt19937 gen; 
   std::normal_distribution<float> normal_dist;
+  std::vector<std::normal_distribution<float>> normal_dist_vect;
 };
 }
 #endif
