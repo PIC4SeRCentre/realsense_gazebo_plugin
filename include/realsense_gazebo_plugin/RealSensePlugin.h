@@ -145,5 +145,6 @@ protected:
   std::normal_distribution<float> normal_dist;
   std::vector<std::normal_distribution<float>> normal_dist_vect;
 };
+
 }
 #endif

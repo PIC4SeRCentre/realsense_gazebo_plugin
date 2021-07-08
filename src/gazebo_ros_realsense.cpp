@@ -153,7 +153,7 @@ bool GazeboRosRealsense::FillPointCloudHelper(
   double hfov = this->depthCam->HFOV().Radian();
   double fl = ((double)this->depthCam->ImageWidth()) / (2.0 * tan(hfov / 2.0));
   
-  //std::cout << std::setprecision(3);
+
   // convert depth to point cloud
   for (uint32_t j = 0; j < rows_arg; j++) {
     double pAngle;
@@ -172,7 +172,7 @@ bool GazeboRosRealsense::FillPointCloudHelper(
 
       double depth = toCopyFrom[index++];  // + 0.0*this->myParent->GetNearClip();
 
-      //std::cout << depth << " ";
+
 
       if (depth > pointCloudCutOff_ && depth < pointCloudCutOffMax_) {
         // in optical frame
@@ -207,7 +207,7 @@ bool GazeboRosRealsense::FillPointCloudHelper(
       }
     }
   }
-  //std::cout << "\n" << std::endl;
+
   // reconvert to original height and width after the flat reshape
   point_cloud_msg.height = rows_arg;
   point_cloud_msg.width = cols_arg;
@@ -257,6 +257,7 @@ void GazeboRosRealsense::OnNewDepthFrame()
     //auto stop = std::chrono::high_resolution_clock::now();
     //auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
     //std::cout << "Depth and pc duration " << duration.count() << "ms" << std::endl;
+
     this->pointcloud_pub_->publish(this->pointcloud_msg_);
   }
 

@@ -28,6 +28,8 @@
 
 using namespace gazebo;
 
+
+
 /////////////////////////////////////////////////
 RealSensePlugin::RealSensePlugin()
 {
@@ -142,8 +144,9 @@ void RealSensePlugin::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf)
                 float sigma_z = 0.001063 + 0.0007278*z + 0.003949*z*z;
                 this->normal_dist_vect.emplace_back(std::normal_distribution<float>(0.0, sigma_z));
         }
+  } else if (cameraParamsMap_[DEPTH_CAMERA_NAME].noise_type == "none"){
   } else {
-        std::cerr << "The nois type: " << cameraParamsMap_[DEPTH_CAMERA_NAME].noise_type << " is not accepted" <<
+        std::cerr << "The noise type: " << cameraParamsMap_[DEPTH_CAMERA_NAME].noise_type << " is not accepted" <<
         std::endl;
         return;
   }
@@ -280,16 +283,12 @@ void RealSensePlugin::OnNewDepthFrame()
   msgs::ImageStamped msg;
 
   // Convert Float depth data to RealSense depth data
-  // recast the const float pointer as a float pointer
+  // Hack, recast the const float pointer as a float pointer
   float * depthDataFloat =  const_cast<float*>(this->depthCam->DepthData());
 
-  //std::cout << std::setprecision(3);
-  for (unsigned int i = 0; i < imageSize; ++i) {
-    // inject noise to clip it if it goes out of boudaries
-    //std::cout << "depth data " << depthDataFloat[i];
-    //std::cout << depthDataFloat[i] << " ";
 
-    //std::cout << " with noise " << data << std::endl;
+  for (unsigned int i = 0; i < imageSize; ++i) {
+  
     // Check clipping and overflow
     if (depthDataFloat[i] < rangeMinDepth_ ||
       depthDataFloat[i] > rangeMaxDepth_ ||
@@ -298,20 +297,27 @@ void RealSensePlugin::OnNewDepthFrame()
     {
       this->depthMap[i] = 0;
     } else {
+      // inject noise to clip it if it goes out of boudaries
       if (cameraParamsMap_[DEPTH_CAMERA_NAME].noise_type == "model"){
-        depthDataFloat[i] += this->normal_dist_vect[std::round(depthDataFloat[i] - pointCloudCutOff_) * 1000](this->gen);
-        if (depthDataFloat[i] < rangeMinDepth_ ||
-      depthDataFloat[i] > rangeMaxDepth_)
-      {
-        depthDataFloat[i] = 0;
-      }
-      } else {
-        depthDataFloat[i] += this->normal_dist(this->gen);
+         depthDataFloat[i] += this->normal_dist_vect[std::round(depthDataFloat[i] - pointCloudCutOff_) * 1000](this->gen);
+         if (depthDataFloat[i] < rangeMinDepth_ ||
+            depthDataFloat[i] > rangeMaxDepth_)
+         {
+            depthDataFloat[i] = 0;
+         }
+      } else if (cameraParamsMap_[DEPTH_CAMERA_NAME].noise_type == "gaussian"){
+         depthDataFloat[i] += this->normal_dist(this->gen);
+         if (depthDataFloat[i] < rangeMinDepth_ ||
+            depthDataFloat[i] > rangeMaxDepth_)
+         {
+            depthDataFloat[i] = 0;
+         }
+      } else if (cameraParamsMap_[DEPTH_CAMERA_NAME].noise_type == "none"){
       }
       this->depthMap[i] = (uint16_t)(depthDataFloat[i] / DEPTH_SCALE_M);
     }
   }
-  //std::cout << std::endl;
+
 
   // Pack realsense scaled depth map
   msgs::Set(msg.mutable_time(), this->world->SimTime());
