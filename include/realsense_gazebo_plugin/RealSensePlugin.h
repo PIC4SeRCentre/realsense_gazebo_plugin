@@ -144,6 +144,11 @@ protected:
   std::mt19937 gen; 
   std::normal_distribution<float> normal_dist;
   std::vector<std::normal_distribution<float>> normal_dist_vect;
+
+  bool pose_ = false;
+  bool forceCloud_ = false;
+  bool colorCloud_ = false;
+  std::string poseTopic_;
 };
 
 }

@@ -20,6 +20,7 @@ find_package(gazebo_ros REQUIRED)
 find_package(image_transport REQUIRED)
 find_package(camera_info_manager REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 
 find_package(gazebo REQUIRED)
 
@@ -31,6 +32,7 @@ set( dependencies
     image_transport
     camera_info_manager
     sensor_msgs
+    geometry_msgs
 )
 
 include_directories(

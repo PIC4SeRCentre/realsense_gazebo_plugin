@@ -7,6 +7,8 @@
 #include <sensor_msgs/msg/camera_info.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
+#include <geometry_msgs/msg/pose_stamped.hpp>
+#include <nav_msgs/msg/odometry.hpp>
 
 //#include <sensor_msgs/image_encodings.h>
 
@@ -15,6 +17,9 @@
 
 #include <memory>
 #include <string>
+
+#include <gazebo/physics/physics.hh>
+#include <ignition/math/Pose3.hh>
 
 namespace gazebo
 {
@@ -69,6 +74,8 @@ private:
   image_transport::ImageTransport * itnode_;
 
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pointcloud_pub_;
+  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_pub_;
+  rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odometry_pub_;
 
 protected:
   image_transport::CameraPublisher color_pub_, ir1_pub_, ir2_pub_, depth_pub_;
@@ -78,6 +85,9 @@ protected:
 protected:
   sensor_msgs::msg::Image image_msg_, depth_msg_;
   sensor_msgs::msg::PointCloud2 pointcloud_msg_;
+  geometry_msgs::msg::PoseStamped pose_msg_;
+  nav_msgs::msg::Odometry nav_msg_;
+  physics::ModelPtr model_{nullptr};
 };
 }
 #endif /* _GAZEBO_ROS_REALSENSE_PLUGIN_ */

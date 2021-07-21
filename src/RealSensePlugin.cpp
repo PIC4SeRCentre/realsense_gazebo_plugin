@@ -126,6 +126,14 @@ void RealSensePlugin::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf)
     } else if (name == "depthNoiseStd") {
       cameraParamsMap_[DEPTH_CAMERA_NAME].noise_std =
       std::stod(_sdf->GetValue()->GetAsString());
+    } else if (name == "publishPose") {
+      _sdf->GetValue()->Get(pose_);
+    } else if (name == "poseTopicName") {
+      poseTopic_ = _sdf->GetValue()->GetAsString();
+    } else if (name == "forceCloudPub") {
+      _sdf->GetValue()->Get(forceCloud_);
+    } else if (name == "colorCloud") {
+      _sdf->GetValue()->Get(colorCloud_);
     } else if (name == "robotNamespace") {
       break;
     } else {

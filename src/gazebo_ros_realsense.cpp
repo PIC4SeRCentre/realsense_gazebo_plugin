@@ -29,6 +29,8 @@ GazeboRosRealsense::~GazeboRosRealsense()
 void GazeboRosRealsense::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf)
 {
 
+  this->model_ = _model;
+
   this->node_ = rclcpp::Node::make_shared("GazeboRealsenseNode");
 
   // Make sure the ROS node for Gazebo has already been initialized
@@ -70,6 +72,10 @@ void GazeboRosRealsense::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf)
   if (pointCloud_) {
     this->pointcloud_pub_ = this->node_->create_publisher<sensor_msgs::msg::PointCloud2>(
       pointCloudTopic_, rclcpp::SystemDefaultsQoS());
+  }
+  if (pose_) {
+    this->pose_pub_ = this->node_->create_publisher<geometry_msgs::msg::PoseStamped>(
+      poseTopic_, rclcpp::SystemDefaultsQoS());
   }
 
   std::cout << "SETTED UP ALL PUBLISHERS" << std::endl;
@@ -123,6 +129,25 @@ void GazeboRosRealsense::OnNewFrame(
   // publish to ROS
   auto camera_info_msg =
     cameraInfo(this->image_msg_, cameras.at(camera_id)->HFOV().Radian());
+  
+  if (pose_){
+    auto model_state = std::make_unique<gazebo::physics::ModelState>(this->model_);
+    auto pose = std::make_unique<ignition::math::Pose3<double>>(model_state->Pose());
+  
+    this->pose_msg_.header.frame_id = std::string{"odom"};
+    this->pose_msg_.header.stamp.sec = current_time.sec;
+    this->pose_msg_.header.stamp.nanosec = current_time.nsec;
+    this->pose_msg_.pose.position.x = pose->Pos().X();
+    this->pose_msg_.pose.position.y = pose->Pos().Y();
+    this->pose_msg_.pose.position.z = pose->Pos().Z();
+    this->pose_msg_.pose.orientation.x = pose->Rot().X();
+    this->pose_msg_.pose.orientation.y = pose->Rot().Y();
+    this->pose_msg_.pose.orientation.z = pose->Rot().Z();
+    this->pose_msg_.pose.orientation.w = pose->Rot().W();
+  
+    pose_pub_->publish(this->pose_msg_);
+  }
+  
   image_pub->publish(this->image_msg_, camera_info_msg);
 }
 
@@ -137,7 +162,11 @@ bool GazeboRosRealsense::FillPointCloudHelper(
   double pointCloudCutOff_ = (double)this->rangeMinDepth_;
   double pointCloudCutOffMax_ = (double)this->rangeMaxDepth_;
   sensor_msgs::PointCloud2Modifier pcd_modifier(point_cloud_msg);
-  pcd_modifier.setPointCloud2FieldsByString(2, "xyz", "rgb");
+  if (colorCloud_){
+      pcd_modifier.setPointCloud2FieldsByString(2, "xyz", "rgb");
+  } else {
+      pcd_modifier.setPointCloud2FieldsByString(1, "xyz");
+  }
   // convert to flat array shape, we need to reconvert later
   pcd_modifier.resize(rows_arg * cols_arg);
   point_cloud_msg.is_dense = true;
@@ -145,7 +174,11 @@ bool GazeboRosRealsense::FillPointCloudHelper(
   sensor_msgs::PointCloud2Iterator<float> iter_x(pointcloud_msg_, "x");
   sensor_msgs::PointCloud2Iterator<float> iter_y(pointcloud_msg_, "y");
   sensor_msgs::PointCloud2Iterator<float> iter_z(pointcloud_msg_, "z");
-  sensor_msgs::PointCloud2Iterator<uint8_t> iter_rgb(pointcloud_msg_, "rgb");
+  std::unique_ptr<sensor_msgs::PointCloud2Iterator<uint8_t>> iter_rgb_ptr;
+  
+  if (colorCloud_){
+      iter_rgb_ptr = std::make_unique<sensor_msgs::PointCloud2Iterator<uint8_t>>(pointcloud_msg_, "rgb");
+  }
 
   float * toCopyFrom = (float *)data_arg;
   int index = 0;
@@ -162,7 +195,7 @@ bool GazeboRosRealsense::FillPointCloudHelper(
     } else {
       pAngle = 0.0;
     }
-    for (uint32_t i = 0; i < cols_arg; i++, ++iter_x, ++iter_y, ++iter_z, ++iter_rgb) {
+    for (uint32_t i = 0; i < cols_arg; i++, ++iter_x, ++iter_y, ++iter_z) {
       double yAngle;
       if (cols_arg > 1) {
         yAngle = atan2((double)i - 0.5 * (double)(cols_arg - 1), fl);
@@ -187,23 +220,27 @@ bool GazeboRosRealsense::FillPointCloudHelper(
         point_cloud_msg.is_dense = false;
       }
 
-      // put image color data for each point
-      uint8_t * image_src = (uint8_t *)(&(this->image_msg_.data[0]));
-      if (this->image_msg_.data.size() == rows_arg * cols_arg * 3) {
-        // color
-        iter_rgb[0] = image_src[i * 3 + j * cols_arg * 3 + 0];
-        iter_rgb[1] = image_src[i * 3 + j * cols_arg * 3 + 1];
-        iter_rgb[2] = image_src[i * 3 + j * cols_arg * 3 + 2];
-      } else if (this->image_msg_.data.size() == rows_arg * cols_arg) {
-        // mono (or bayer?  @todo; fix for bayer)
-        iter_rgb[0] = image_src[i + j * cols_arg];
-        iter_rgb[1] = image_src[i + j * cols_arg];
-        iter_rgb[2] = image_src[i + j * cols_arg];
-      } else {
-        // no image
-        iter_rgb[0] = 0;
-        iter_rgb[1] = 0;
-        iter_rgb[2] = 0;
+      if (colorCloud_){
+          // put image color data for each point
+          sensor_msgs::PointCloud2Iterator<uint8_t>& iter_rgb = *iter_rgb_ptr;
+          uint8_t * image_src = (uint8_t *)(&(this->image_msg_.data[0]));
+          if (this->image_msg_.data.size() == rows_arg * cols_arg * 3) {
+            // color
+            iter_rgb[0] = image_src[i * 3 + j * cols_arg * 3 + 0];
+            iter_rgb[1] = image_src[i * 3 + j * cols_arg * 3 + 1];
+            iter_rgb[2] = image_src[i * 3 + j * cols_arg * 3 + 2];
+          } else if (this->image_msg_.data.size() == rows_arg * cols_arg) {
+            // mono (or bayer?  @todo; fix for bayer)
+            iter_rgb[0] = image_src[i + j * cols_arg];
+            iter_rgb[1] = image_src[i + j * cols_arg];
+            iter_rgb[2] = image_src[i + j * cols_arg];
+          } else {
+            // no image
+            iter_rgb[0] = 0;
+            iter_rgb[1] = 0;
+            iter_rgb[2] = 0;
+          }
+          ++iter_rgb;
       }
     }
   }
@@ -244,7 +281,7 @@ void GazeboRosRealsense::OnNewDepthFrame()
     cameraInfo(this->depth_msg_, this->depthCam->HFOV().Radian());
   this->depth_pub_.publish(this->depth_msg_, depth_info_msg);
 
-  if (pointCloud_ && this->pointcloud_pub_->get_subscription_count() > 0) {
+  if ((pointCloud_ && this->pointcloud_pub_->get_subscription_count() > 0) || forceCloud_) {
     this->pointcloud_msg_.header = this->depth_msg_.header;
     this->pointcloud_msg_.width = this->depthCam->ImageWidth();
     this->pointcloud_msg_.height = this->depthCam->ImageHeight();
