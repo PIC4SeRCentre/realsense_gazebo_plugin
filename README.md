@@ -167,7 +167,7 @@ In custom robot's `model.sdf`, we should attach the link, sensors, joint  and pl
       <pointCloud>true</pointCloud>
       <pointCloudTopicName>depth/color/points</pointCloudTopicName>
       <pointCloudCutoff>0.3</pointCloudCutoff>
-      <depthNoiseType>gaussian</depthNoiseType>
+      <depthNoiseType>model</depthNoiseType>
       <depthNoiseStd>10.0</depthNoiseStd>
       <publishPose>false</publishPose>
       <poseTopicName>odometry</poseTopicName>
